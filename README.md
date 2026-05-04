@@ -376,7 +376,7 @@ Same approach as the standard transfer node, with finer control: per-band streng
 
 ### FLUX.2 Klein Identity Feature Transfer V3
 
-![Identity Feature Transfer V3 process diagram](example_workflow/identity_feature_transfer_v3_diagram.svg)
+![Identity Feature Transfer V3 process diagram](example_workflow/identity_feature_transfer_v3_diagram.png)
 
 Shipment-ready identity preservation node for FLUX.2 Klein. This is the easier version to use.
 
