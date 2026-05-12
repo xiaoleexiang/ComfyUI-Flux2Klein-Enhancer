@@ -30,6 +30,10 @@ class IdentityGuidance:
                     "default": "adaptive",
                     "tooltip": "adaptive: pulls only where prediction resembles reference. direct: pulls everywhere equally. channel_match: matches color/feature statistics without copying spatial content.",
                 }),
+                "sim_floor": ("FLOAT", {
+                    "default": 0.0, "min": 0.0, "max": 0.95, "step": 0.01,
+                    "tooltip": "Cosine similarity threshold gating which tokens receive correction. Tokens with similarity below this value are excluded. 0.0 = all tokens contribute proportionally. Higher values (e.g., 0.2-0.4) restrict correction to only well-matched regions for more targeted identity guidance.",
+                }),
             },
         }
 
@@ -38,7 +42,7 @@ class IdentityGuidance:
     CATEGORY = "conditioning/flux2klein"
 
     def apply(self, model, identity_latent, strength=0.3,
-              start_percent=0.0, end_percent=0.8, mode="adaptive"):
+              start_percent=0.0, end_percent=0.8, mode="adaptive", sim_floor=0.0):
         m = model.clone()
         ref = identity_latent["samples"]
 
@@ -47,6 +51,7 @@ class IdentityGuidance:
         _start = start_percent
         _end = end_percent
         _mode = mode
+        _sim_floor = float(sim_floor)
 
         def post_cfg_fn(args):
             denoised = args["denoised"]
@@ -81,7 +86,14 @@ class IdentityGuidance:
                 d_flat = denoised.flatten(2)
                 r_flat = ref_resized.flatten(2)
                 cos_sim = F.cosine_similarity(d_flat, r_flat, dim=1)
-                weight = cos_sim.clamp(0.0, 1.0)
+                
+                if _sim_floor > 0.0:
+                    weight = torch.where(cos_sim >= _sim_floor, 
+                                         cos_sim.clamp(0.0, 1.0),
+                                         torch.zeros_like(cos_sim))
+                else:
+                    weight = cos_sim.clamp(0.0, 1.0)
+                
                 weight = weight.unsqueeze(1)
                 weight = weight.view(denoised.shape[0], 1,
                                      denoised.shape[2], denoised.shape[3])
